@@ -1,0 +1,90 @@
+services:
+  postgres:
+    image: postgres:17-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-healthsync_user}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-healthsync_dev_password}
+      POSTGRES_DB: ${POSTGRES_DB:-healthsync}
+    ports:
+      - "${POSTGRES_PORT:-5433}:5432"
+    volumes:
+      - healthsync_postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+      args:
+        INSTALL_LOCAL_MODEL: ${INSTALL_LOCAL_MODEL:-false}
+    restart: unless-stopped
+    environment:
+      APP_NAME: "HEALTHSYNC-AI API"
+      ENVIRONMENT: development
+      API_PREFIX: /api
+      DATABASE_URL: postgresql+psycopg://${POSTGRES_USER:-healthsync_user}:${POSTGRES_PASSWORD:-healthsync_dev_password}@postgres:5432/${POSTGRES_DB:-healthsync}
+      JWT_SECRET: ${JWT_SECRET:-local-development-secret-change-this-before-deployment-123456789}
+      JWT_EXPIRE_MINUTES: 60
+      CORS_ORIGINS: http://localhost:5173,http://127.0.0.1:5173
+      UPLOAD_DIR: /app/storage/medical_records
+      PUBLIC_APP_URL: ${PUBLIC_APP_URL:-}
+      MAX_UPLOAD_MB: ${MAX_UPLOAD_MB:-15}
+      OCR_ESCALATION_MIN_CONFIDENCE: ${OCR_ESCALATION_MIN_CONFIDENCE:-65}
+      HF_TOKEN: ${HF_TOKEN:-}
+      HF_MODEL_ID: ${HF_MODEL_ID:-Qwen/Qwen3-4B:fastest}
+      HF_VISION_MODEL_ID: ${HF_VISION_MODEL_ID:-Qwen/Qwen2.5-VL-3B-Instruct:fastest}
+      HF_CHAT_ENDPOINT: ${HF_CHAT_ENDPOINT:-https://router.huggingface.co/v1/chat/completions}
+      LOCAL_QWEN_BASE_MODEL_ID: ${LOCAL_QWEN_BASE_MODEL_ID:-Qwen/Qwen3-4B}
+      LOCAL_QWEN_ADAPTER_DIR: ${LOCAL_QWEN_ADAPTER_DIR:-/app/local_models/healthsync-qwen3-extractor}
+      LOCAL_QWEN_MAX_NEW_TOKENS: ${LOCAL_QWEN_MAX_NEW_TOKENS:-700}
+      OPENROUTER_API_KEY: ${OPENROUTER_API_KEY:-}
+      OPENROUTER_ENDPOINT: ${OPENROUTER_ENDPOINT:-https://openrouter.ai/api/v1/chat/completions}
+      OPENROUTER_CHAT_MODEL_ID: ${OPENROUTER_CHAT_MODEL_ID:-openai/gpt-4o-mini}
+      OPENROUTER_SUMMARY_MODEL_ID: ${OPENROUTER_SUMMARY_MODEL_ID:-openai/gpt-4o-mini}
+      OPENROUTER_VISION_MODEL_ID: ${OPENROUTER_VISION_MODEL_ID:-google/gemini-2.5-flash}
+      OTP_TTL_MINUTES: 10
+      OTP_MAX_ATTEMPTS: 5
+      OTP_RESEND_SECONDS: 60
+      OTP_DELIVERY: ${OTP_DELIVERY:-console}
+      SMTP_HOST: ${SMTP_HOST:-smtp.gmail.com}
+      SMTP_PORT: ${SMTP_PORT:-465}
+      SMTP_USER: ${SMTP_USER:-}
+      SMTP_APP_PASSWORD: ${SMTP_APP_PASSWORD:-}
+      SMTP_FROM: ${SMTP_FROM:-}
+      TESSDATA_DIR: /app/models/tessdata
+    ports:
+      - "8000:8000"
+    volumes:
+      - healthsync_uploads:/app/storage
+      - ${LOCAL_QWEN_ADAPTER_HOST_DIR:-./ml_training/output/healthsync-qwen3-extractor}:/app/local_models/healthsync-qwen3-extractor:ro
+    depends_on:
+      postgres:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/api/health', timeout=3).read()"]
+      interval: 10s
+      timeout: 5s
+      retries: 15
+      start_period: 15s
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    ports:
+      - "5173:5173"
+    environment:
+      VITE_API_PROXY_TARGET: http://backend:8000
+    depends_on:
+      backend:
+        condition: service_healthy
+
+volumes:
+  healthsync_postgres_data:
+  healthsync_uploads:

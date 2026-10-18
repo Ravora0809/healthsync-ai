@@ -1,0 +1,14 @@
+OCR MODEL BUNDLE
+===============
+File: models/tessdata/eng.traineddata
+Engine: Tesseract OCR
+Language: English (eng)
+Upstream project: https://github.com/tesseract-ocr/tessdata
+Upstream engine: https://github.com/tesseract-ocr/tesseract
+License: Apache License 2.0 (see LICENSES/TESSERACT-APACHE-2.0.txt)
+SHA-256: 7d4322bd2a7749724879683fc3912cb542f19906c83bcc1a52132556427170b2
+
+The model is copied into the backend image at build time and referenced via
+TESSDATA_DIR. No OCR-model download is required when the app runs. OCR output
+may be wrong and every extracted clinical field must be checked against the
+source medical record.

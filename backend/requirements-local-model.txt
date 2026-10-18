@@ -1,0 +1,7 @@
+# Optional inference dependencies for a locally hosted Qwen LoRA adapter.
+# Install by building with --build-arg INSTALL_LOCAL_MODEL=true.
+torch>=2.4,<3
+transformers>=4.51,<5
+peft>=0.15,<1
+accelerate>=1.2,<2
+safetensors>=0.4

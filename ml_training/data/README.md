@@ -1,0 +1,1 @@
+Only synthetic schema examples are included. Keep real patient documents and any identifiable/authorized derivatives out of version control. Train/validation/test splits must be separated by patient or document source. See `../README.md` for data governance and training instructions.
